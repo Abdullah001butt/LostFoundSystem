@@ -140,9 +140,9 @@ Select `LostFoundSystem` from the database dropdown at the top of the SSMS toolb
 
 | Name | Role |
 |---|---|
-| Nabia | Group Leader |
+| Nabia Sajid | Group Leader |
 | Muhammad Abdullah | Member |
-| Maryam | Member |
+| Maryam Muazzam | Member |
 | Sathya Narayan | Member |
 
 ## License
