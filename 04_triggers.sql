@@ -15,6 +15,20 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+    -- Business rule: block a user from claiming an item they reported.
+    -- Must run before any side effects below.
+    IF EXISTS (
+        SELECT 1
+        FROM inserted ins
+        JOIN Items i ON ins.ItemID = i.ItemID
+        WHERE i.ReportedBy = ins.ClaimantID
+    )
+    BEGIN
+        RAISERROR ('You cannot claim an item you reported yourself.', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END
+
     UPDATE i
     SET i.Status = 'ClaimPending'
     FROM Items i
@@ -57,6 +71,19 @@ BEGIN
           AND cr.ClaimID <> ins.ClaimID
           AND cr.Status = 'Pending';
 
+        -- claim was rejected: free the item back up, but only if no
+        -- other pending claim is still waiting on it
+        UPDATE i
+        SET i.Status = 'Open'
+        FROM Items i
+        JOIN inserted ins ON i.ItemID = ins.ItemID
+        WHERE ins.Status = 'Rejected'
+          AND i.Status = 'ClaimPending'
+          AND NOT EXISTS (
+              SELECT 1 FROM ClaimRequests cr2
+              WHERE cr2.ItemID = ins.ItemID
+                AND cr2.Status = 'Pending'
+          );
         INSERT INTO AuditLog (ActionType, TableName, RecordID, ActionDetails)
         SELECT 'UPDATE', 'ClaimRequests', ins.ClaimID,
                'Claim status changed to ' + ins.Status
@@ -68,22 +95,6 @@ GO
 -- ------------------------------------------------------------
 -- TR3: Prevent a user from claiming their own found-item report.
 -- ------------------------------------------------------------
-CREATE OR ALTER TRIGGER trg_ClaimRequest_PreventSelfClaim
-ON ClaimRequests
-AFTER INSERT
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    IF EXISTS (
-        SELECT 1
-        FROM inserted ins
-        JOIN Items i ON ins.ItemID = i.ItemID
-        WHERE i.ReportedBy = ins.ClaimantID
-    )
-    BEGIN
-        RAISERROR ('You cannot claim an item you reported yourself.', 16, 1);
-        ROLLBACK TRANSACTION;
-    END
-END;
+IF OBJECT_ID('trg_ClaimRequest_PreventSelfClaim', 'TR') IS NOT NULL
+    DROP TRIGGER trg_ClaimRequest_PreventSelfClaim;
 GO

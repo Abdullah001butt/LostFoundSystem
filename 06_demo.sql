@@ -29,6 +29,34 @@ SELECT ItemID, Title, Status FROM Items WHERE ItemID = 4;
 SELECT * FROM ClaimRequests;
 GO
 
+-- Rejected-claim scenario: a student (UserID 3) claims the found bottle
+-- reported by UserID 2 (ItemID 6)
+INSERT INTO ClaimRequests (ItemID, ClaimantID, ProofDetails)
+VALUES (6, 3, 'Steel bottle with a dent near the base and my initials scratched on it');
+GO
+
+SELECT ItemID, Title, Status FROM Items WHERE ItemID = 6;
+GO
+
+EXEC sp_ReviewClaim @ClaimID = 2, @AdminID = 5, @Decision = 'Rejected';
+GO
+
+-- item should revert from ClaimPending back to Open
+SELECT ItemID, Title, Status FROM Items WHERE ItemID = 6;
+GO
+
+-- confirms sp_ReviewClaim now refuses to re-review a non-Pending claim (raises an error)
+EXEC sp_ReviewClaim @ClaimID = 2, @AdminID = 5, @Decision = 'Approved';
+GO
+
+-- Self-claim prevention: UserID 4 reported ItemID 5, attempts to claim it themselves
+-- Expected to fail: trigger raises an error and rolls back the insert
+INSERT INTO ClaimRequests (ItemID, ClaimantID, ProofDetails)
+VALUES (5, 4, 'trying to claim my own report');
+GO
+
+SELECT * FROM ClaimRequests WHERE ItemID = 5;
+GO
 -- Try to claim your own reported item (should fail via trg_ClaimRequest_PreventSelfClaim)
 -- UserID 4 reported ItemID 5 (Phone Found) -- attempt self-claim:
 -- INSERT INTO ClaimRequests (ItemID, ClaimantID, ProofDetails)

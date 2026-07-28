@@ -1,0 +1,9 @@
+USE master;
+GO
+
+IF DB_ID('LostFoundSystem') IS NOT NULL
+BEGIN
+    ALTER DATABASE LostFoundSystem SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE LostFoundSystem;
+END
+GO

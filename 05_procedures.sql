@@ -78,13 +78,20 @@ BEGIN
         RETURN;
     END
 
+    IF NOT EXISTS (SELECT 1 FROM ClaimRequests WHERE ClaimID = @ClaimID AND Status = 'Pending')
+    BEGIN
+        RAISERROR ('ClaimID %d was not found or is no longer Pending.', 16, 1, @ClaimID);
+        RETURN;
+    END
+
     BEGIN TRANSACTION;
 
     UPDATE ClaimRequests
     SET Status = @Decision,
         ReviewedBy = @AdminID,
         ReviewedAt = GETDATE()
-    WHERE ClaimID = @ClaimID;
+    WHERE ClaimID = @ClaimID
+      AND Status = 'Pending';
 
     COMMIT TRANSACTION;
 END;
